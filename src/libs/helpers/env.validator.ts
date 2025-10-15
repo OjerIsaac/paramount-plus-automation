@@ -15,4 +15,8 @@ export const envVarsSchema = Joi.object({
 
   DB_SSL: Joi.string().valid('true', 'false').default('false'),
   DB_SSL_REJECT_UNAUTHORIZED: Joi.string().valid('true', 'false').default('true'),
+
+  // PROXY_HOST: Joi.string().required(),
+  // USER_AGENT: Joi.string().required(),
+  // PUPPETEER_HEADLESS: Joi.string().required(),
 });

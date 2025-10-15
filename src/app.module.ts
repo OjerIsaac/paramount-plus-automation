@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './libs/logger/winston-logger.config';
+import { AutomationModule } from './automation/automation.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { winstonConfig } from './libs/logger/winston-logger.config';
     },
     AuthModule,
     UserModule,
+    AutomationModule,
   ],
   controllers: [],
   providers: [],
