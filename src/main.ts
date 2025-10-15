@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { winstonConfig } from './libs/logger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './libs/interceptors';
@@ -33,10 +34,36 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter(configService));
   app.setGlobalPrefix('/api/v1');
 
+  const config = new DocumentBuilder()
+    .setTitle('Paramount Plus Automation API')
+    .setDescription('API documentation for Paramount Plus Automation backend')
+    .setVersion('1.0.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        in: 'header',
+      },
+      'access-token'
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
+
   const port = configService.get('PORT') || 3000;
   await app.listen(port);
 
-  console.log(`🚀 Application is running on: ${await app.getUrl()}`);
+  const appUrl = await app.getUrl();
+
+  console.log(`🚀 Application is running on: ${appUrl}`);
+  console.log(`📘 Swagger docs available at: ${appUrl}/api/docs`);
 }
 
 bootstrap();
