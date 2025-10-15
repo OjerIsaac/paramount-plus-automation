@@ -21,10 +21,13 @@ import { envVarsSchema } from './libs/helpers';
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
         autoLoadEntities: true,
-        ssl: {
-          rejectUnauthorized: false,
-        },
         synchronize: false,
+        ssl:
+          config.get('DB_SSL') === 'true'
+            ? {
+                rejectUnauthorized: config.get('DB_SSL_REJECT_UNAUTHORIZED') !== 'false',
+              }
+            : false,
         extra: {
           options: '-c timezone=UTC',
         },
