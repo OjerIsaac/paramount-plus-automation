@@ -1,19 +1,22 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
-import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import { WinstonModule } from 'nest-winston';
+import { winstonConfig } from './libs/logger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './libs/interceptors';
 import { HttpExceptionFilter } from './libs/filters';
 import { ValidationPipe } from './libs/pipes';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const logger = new Logger('Nest Application');
+  const app = await NestFactory.create(AppModule, {
+    logger: WinstonModule.createLogger(winstonConfig),
+  });
+
+  const configService = app.get(ConfigService);
 
   const allowedOrigins = ['http://localhost:3000'];
 
-  const corsOptions: CorsOptions = {
+  app.enableCors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, origin);
@@ -23,20 +26,17 @@ async function bootstrap() {
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
-  };
+  });
 
-  app.enableCors(corsOptions);
   app.useGlobalPipes(new ValidationPipe());
   app.useGlobalInterceptors(new TransformInterceptor());
-  app.useGlobalFilters(new HttpExceptionFilter(app.get(ConfigService)));
-
+  app.useGlobalFilters(new HttpExceptionFilter(configService));
   app.setGlobalPrefix('/api/v1');
 
-  const configService = app.get(ConfigService);
-  const port = configService.get('PORT');
-
+  const port = configService.get('PORT') || 3000;
   await app.listen(port);
-  logger.log(`Application is running on: ${await app.getUrl()}`);
+
+  console.log(`🚀 Application is running on: ${await app.getUrl()}`);
 }
 
 bootstrap();

@@ -3,6 +3,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { envVarsSchema } from './libs/helpers';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './user/user.module';
+import { WinstonModule } from 'nest-winston';
+import { winstonConfig } from './libs/logger/winston-logger.config';
 
 @Module({
   imports: [
@@ -11,6 +15,7 @@ import { envVarsSchema } from './libs/helpers';
       cache: true,
       validationSchema: envVarsSchema,
     }),
+    WinstonModule.forRoot(winstonConfig),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (config: ConfigService) => ({
@@ -21,7 +26,7 @@ import { envVarsSchema } from './libs/helpers';
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
         autoLoadEntities: true,
-        synchronize: false,
+        synchronize: true,
         ssl:
           config.get('DB_SSL') === 'true'
             ? {
@@ -41,6 +46,8 @@ import { envVarsSchema } from './libs/helpers';
       }),
       global: true,
     },
+    AuthModule,
+    UserModule,
   ],
   controllers: [],
   providers: [],
