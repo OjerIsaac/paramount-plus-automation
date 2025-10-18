@@ -35,7 +35,7 @@ export class AutomationService {
     const host = process.env.PROXY_HOST;
     const port = process.env.PROXY_PORT;
     if (!host || !port) return 'none';
-    return `${host}:<port>`;
+    return `${host}:${port}`;
   }
 
   public async runCardAutomation(userId: string, dto: CardUpdateDto) {
@@ -43,40 +43,66 @@ export class AutomationService {
     if (!user) throw new Error('User not found');
 
     const headless = process.env.PUPPETEER_HEADLESS !== 'false';
-    const ua = process.env.USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
+    const ua =
+      process.env.USER_AGENT ||
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
+
+    // Proxy configuration
     const proxyHost = process.env.PROXY_HOST;
     const proxyPort = process.env.PROXY_PORT;
     const proxyUser = process.env.PROXY_USERNAME;
     const proxyPass = process.env.PROXY_PASSWORD;
     const proxyArg = proxyHost && proxyPort ? `${proxyHost}:${proxyPort}` : undefined;
 
-    const launchArgs = ['--no-sandbox', '--disable-setuid-sandbox'];
-    if (proxyArg) launchArgs.push(`--proxy-server=${proxyArg}`);
+    // Puppeteer launch options with SSL and proxy fixes
+    const launchArgs = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--ignore-certificate-errors',
+      '--ignore-certificate-errors-spki-list',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-infobars',
+      '--disable-blink-features=AutomationControlled',
+    ];
 
+    // Add proxy (explicit http:// scheme)
+    if (proxyArg) {
+      launchArgs.push(`--proxy-server=http://${proxyArg}`);
+      this.logger.log(`Using proxy server: http://${proxyArg}`);
+    }
+
+    // Launch browser
     this.logger.log(
       `Starting automation for ${user.email} via proxy ${this.maskProxy()} at ${new Date().toISOString()}`
     );
-
-    const browser = await puppeteer.launch({ headless, args: launchArgs });
+    const browser = await puppeteer.launch({
+      headless,
+      args: launchArgs,
+      // Allows HTTPS pages to load even if proxy presents self-signed cert
+      ignoreHTTPSErrors: true,
+    } as any);
     const page = await browser.newPage();
-    page.setDefaultTimeout(30000);
-    await page.setUserAgent(ua);
-    await page.setViewport({ width: 1280, height: 800 });
 
+    // Apply proxy authentication
     if (proxyUser) {
       try {
         await page.authenticate({ username: proxyUser, password: proxyPass || '' });
+        this.logger.log(`Authenticated proxy ${proxyUser}@${proxyHost}:${proxyPort}`);
       } catch (err) {
         this.logger.warn('Proxy authentication failed', err as any);
       }
     }
+
+    await page.setUserAgent(ua);
+    await page.setViewport({ width: 1280, height: 800 });
 
     try {
       // Debug step: verify geo via BrightData test page when debugging
       if (process.env.DEBUG_CHECK_PROXY === 'true') {
         await this.retry(
           async () => {
-            await page.goto('https://geo.brdtest.com/welcome.txt?product=resi&method=native', {
+            await page.goto('https://geo.brdtest.com/welcome.txt?product=isp&method=native', {
               waitUntil: 'networkidle2',
             });
           },
